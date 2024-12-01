@@ -3,10 +3,11 @@ import cv2
 import numpy as np
 import os
 
-from draw_bbox import draw_bbox
+#from draw_bbox import draw_bbox
+from draw_bbox_wo_back import draw_bbox
 
 def video_generation(pcd_dir, output_video):
-    
+
     view_param_file='view_params.json'
     point_size = 1.0
     frame_width = 1920
@@ -15,6 +16,7 @@ def video_generation(pcd_dir, output_video):
 
     pcd_files = sorted([f for f in os.listdir(pcd_dir) if f.endswith('.pcd')])
 
+    # setting view parameters
     custom_view_parameters = None
 
     if os.path.exists(view_param_file):
@@ -40,7 +42,7 @@ def video_generation(pcd_dir, output_video):
         vis.destroy_window()
 
 
-
+    # making a video
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_writer = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
 
@@ -49,13 +51,17 @@ def video_generation(pcd_dir, output_video):
     vis.get_render_option().point_size = point_size
     view_ctl = vis.get_view_control()
 
-    for pcd_file in pcd_files:
+    clusters = []
+    for i,pcd_file in enumerate(pcd_files[:]):
         vis.clear_geometries()
         file_path = os.path.join(pcd_dir, pcd_file)
-        pcd, bounding_boxes = draw_bbox(file_path)
+
+        
+        pcd, bounding_boxes, clusters = draw_bbox(file_path, i, clusters)
         vis.add_geometry(pcd)
         for bbox in bounding_boxes:
             vis.add_geometry(bbox)
+        
         
         view_ctl.convert_from_pinhole_camera_parameters(custom_view_parameters, allow_arbitrary=True)
 
@@ -67,9 +73,15 @@ def video_generation(pcd_dir, output_video):
         image = (image * 255).astype(np.uint8)
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
         video_writer.write(image)
+        print(f"Completed: {i+1}/{len(pcd_files)} pcd files.")
 
     video_writer.release()
     vis.destroy_window()
 
 if __name__ == "__main__":
-    video_generation("data/01_straight_walk/pcd", "01_straight_walk.mp4")
+    scenarios = ['01_straight_walk','02_straight_duck_walk','03_straight_crawl',
+                 '04_zigzag_walk','05_straight_duck_walk','06_straight_crawl',
+                 '07_straight_walk']
+    for i in range(3):
+        video_generation(f"data/{scenarios[i]}/pcd", f"{scenarios[i]}_wo_back4.mp4")
+
